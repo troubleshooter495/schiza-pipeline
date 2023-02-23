@@ -1,22 +1,30 @@
 import torch
+import numpy as np
 from torch_geometric.data import DataLoader
+from torch.autograd import Variable
 
 
-def train_process(model, train_dataset, test_dataset):
+def train_process(model, model_name, train_dataset, test_dataset):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.SGD(model.parameters(),
+                                lr=0.00001, momentum=0.9,
+                                nesterov=True,
+                                weight_decay=0.0005)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-    loss_fn = torch.nn.NLLLoss()
+    # loss_fn = torch.nn.NLLLoss()
+    loss_fn = torch.nn.MSELoss()
     losses = []
 
-    for epoch in range(0, 30):
-        loss = train(model, loss_fn, device, train_loader, optimizer)
-        train_result = eval(model, device, train_loader)
-        test_result = eval(model, device, test_loader)
+    for epoch in range(0, 100):
+        loss = train_func[model_name](model, loss_fn, device, train_loader,
+                                      optimizer)
+        train_result = eval_func[model_name](model, device, train_loader)
+        test_result = eval_func[model_name](model, device, test_loader)
         losses.append(loss)
 
         print(f'Epoch: {epoch + 1:02d}, '
@@ -27,7 +35,11 @@ def train_process(model, train_dataset, test_dataset):
     return model
 
 
-def train(model, loss_fn, device, data_loader, optimizer):
+def eval(model, model_name, data_loader, device):
+    return eval_func[model_name](model, device, data_loader)
+
+
+def _train_base(model, loss_fn, device, data_loader, optimizer):
     """ Performs an epoch of model training.
 
     Parameters:
@@ -53,7 +65,27 @@ def train(model, loss_fn, device, data_loader, optimizer):
     return loss.item()
 
 
-def eval(model, device, loader):
+def _train_brainnet(model, loss_fn, device, data_loader, optimizer):
+    model.train()
+    running_loss = 0.0
+
+    for batch_idx, (inputs, targets) in enumerate(data_loader):
+        inputs, targets = inputs.to(device), targets.to(device)
+
+        optimizer.zero_grad()
+        inputs, targets = Variable(inputs), Variable(targets)
+
+        outputs = model(inputs)
+        loss = loss_fn(outputs, targets)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.data.item()
+
+    return running_loss / len(data_loader.dataset)
+
+
+def _eval_base(model, device, loader):
     """ Calculate accuracy for all examples in a DataLoader.
 
     Parameters:
@@ -74,3 +106,29 @@ def eval(model, device, loader):
         tot += pred.shape[0]
 
     return cor / tot
+
+
+def _eval_beainnet(model, device, data_loader):
+    test_acc = 0
+    model.eval()
+    for batch_idx, (inputs, targets) in enumerate(data_loader):
+        inputs, targets = inputs.to(device), targets.to(device)
+        with torch.no_grad():
+            inputs, targets = Variable(inputs), Variable(targets)
+            outputs = model(inputs)
+            test_acc += (np.argmax(outputs.cpu().numpy(), axis=1) ==
+                         np.argmax(targets.cpu().numpy(), axis=1)).sum()
+
+    test_acc /= len(data_loader.dataset)
+    return test_acc
+
+
+train_func = {
+    'base': _train_base,
+    'BrainNetCNN': _train_brainnet
+}
+
+eval_func = {
+    'base': _eval_base,
+    'BrainNetCNN': _eval_beainnet
+}

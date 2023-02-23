@@ -8,8 +8,17 @@ DATASET_PARAMS = {
     'graph_dataset': {
         'neighbors': 32
     },
+    'BrainNetCNN': {
+        'load_dir': 'data/dataset/schiza-norm.mat'
+    }
 }
 
 MODEL_PARAMS = {
-    'hidden_dim': 128
+    'base': {
+        'hidden_dim': 128
+    },
+    'BrainNetCNN': {
+    }
 }
+
+SEED = 322

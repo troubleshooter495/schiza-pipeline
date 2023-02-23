@@ -6,8 +6,12 @@ from torch_geometric.utils import from_networkx
 from networkx.convert_matrix import from_numpy_matrix
 from nilearn.connectome import ConnectivityMeasure
 
+import torch.utils.data.dataset
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import normalize
+
 from utils.io import read_file_locally
-from config import PATHS, DATASET_PARAMS
+from config import PATHS, DATASET_PARAMS, SEED
 
 
 class GraphDataset(InMemoryDataset):
@@ -63,13 +67,61 @@ class GraphDataset(InMemoryDataset):
         return corr_matrices, pcorr_matrices
 
 
+class BrainNetCNNDataset(torch.utils.data.Dataset):
+    def __init__(self, save_dir: str, load_dir: str, mode: str,
+                 transform=False):
+        """
+        Args:
+            directory (string): Path to the dataset.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.directory = load_dir
+        self.transform = transform
+        self.mode = mode
+
+        x = read_file_locally(load_dir)['dti']
+        y_all = read_file_locally(load_dir)['label'][0]
+        y_2 = np.stack([y_all == 0, y_all == 1], axis=1).astype(int)
+        y = normalize(y_2, axis=0)
+        X_train, X_test, y_train, y_test = train_test_split(x, y,
+                                                            test_size=0.33,
+                                                            random_state=42)
+
+        if self.mode == "train":
+            x = X_train
+            y = y_train
+        elif self.mode == "validation":
+            x = X_test
+            y = y_test
+        else:
+            x = x
+            y = y
+
+        self.X = torch.FloatTensor(np.expand_dims(x, 1).astype(np.float32))
+        self.Y = torch.FloatTensor(y.astype(np.float32))
+
+        print(self.mode, self.X.shape, (self.Y.shape))
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        sample = [self.X[idx], self.Y[idx]]
+        if self.transform:
+            sample[0] = self.transform(sample[0])
+        return sample
+
+
 datasets = {
-    'graph_dataset': GraphDataset
+    'graph_dataset': GraphDataset,
+    'BrainNetCNN': BrainNetCNNDataset,
 }
 
 
-def create_dataset(dataset_name='graph_dataset', save_folder='schiza'):
-    save_dir = f"{PATHS['dataset_dir']}/{save_folder}"
-    dataset = datasets[dataset_name](save_dir, **DATASET_PARAMS[dataset_name])
-    dataset = dataset.shuffle()
+def create_dataset(dataset_name='graph_dataset', save_folder='schiza', **kwargs):
+    save_dir = f"{PATHS['dataset_dir']}/{dataset_name}/{save_folder}"
+    dataset = datasets[dataset_name](save_dir, **DATASET_PARAMS[dataset_name], **kwargs)
+    if dataset_name == 'graph_dataset':
+        dataset = dataset.shuffle()
     return dataset
