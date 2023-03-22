@@ -4,7 +4,26 @@ from torch_geometric.data import DataLoader
 from torch.autograd import Variable
 
 
-def train_process(model, model_name, train_dataset, test_dataset):
+def train_kfold(model_class, model_params, model_name, datasets):
+    models = []
+    train_metrics = []
+    val_metrics = []
+    
+    for (train, val) in datasets:
+        model = model_class(**model_params[model_name], example=train.X)
+        model, metrics = train_process(model, model_name, train, val, return_stats=True)
+        models.append(model)
+        train_metrics.append(metrics['train_metrics'])
+        val_metrics.append(metrics['val_metrics'])
+    
+    print(f'Trained {len(datasets)} folds')
+    print(f'Train metrics for each fold: {train_metrics}\nMean train metric: {np.mean(train_metrics):.4f}')
+    print(f'Validation metrics for each fold: {val_metrics}\nMean validation metric: {np.mean(val_metrics):.4f}')
+
+    return models
+
+
+def train_process(model, model_name, train_dataset, test_dataset, return_stats=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
@@ -19,19 +38,23 @@ def train_process(model, model_name, train_dataset, test_dataset):
     # loss_fn = torch.nn.NLLLoss()
     loss_fn = torch.nn.MSELoss()
     losses = []
-
+    train_metrics = []
+    val_metrics = []
     for epoch in range(0, 100):
         loss = train_func[model_name](model, loss_fn, device, train_loader,
                                       optimizer)
         train_result = eval_func[model_name](model, device, train_loader)
-        test_result = eval_func[model_name](model, device, test_loader)
+        val_result = eval_func[model_name](model, device, test_loader)
         losses.append(loss)
+        train_metrics.append(train_result)
+        val_metrics.append(val_result)
 
         print(f'Epoch: {epoch + 1:02d}, '
               f'Loss: {loss:.4f}, '
               f'Train: {100 * train_result:.2f}%, '
-              f'Test: {100 * test_result:.2f}%')
-
+              f'Test: {100 * val_result:.2f}%')
+    if return_stats:
+        return model, {'loss':losses, 'train_metrics': train_metrics, 'val_metrics': val_metrics}
     return model
 
 
@@ -108,7 +131,7 @@ def _eval_base(model, device, loader):
     return cor / tot
 
 
-def _eval_beainnet(model, device, data_loader):
+def _eval_brainnet(model, device, data_loader):
     test_acc = 0
     model.eval()
     for batch_idx, (inputs, targets) in enumerate(data_loader):
@@ -130,5 +153,5 @@ train_func = {
 
 eval_func = {
     'base': _eval_base,
-    'BrainNetCNN': _eval_beainnet
+    'BrainNetCNN': _eval_brainnet
 }
