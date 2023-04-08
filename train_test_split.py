@@ -1,6 +1,5 @@
 from torch.utils.data import random_split
 from torch import Generator
-import json
 
 from config import SEED
 
@@ -22,7 +21,3 @@ def torch_split(dataset, train_size: float):
     return train_dataset, test_dataset
 
 
-def read_from_json(json_path: str):
-    with open(json_path) as f:
-        kfold_splits = json.load(f)
-    return kfold_splits

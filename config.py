@@ -2,7 +2,7 @@ from model.simple_model import GraphNetwork
 from model.brainnetcnn import BrainNetCNN
 
 MODEL_NAME = 'BrainNetCNN'
-DATASET_NAME = 'cobre'
+DATASET_NAME = 'abide'
 
 
 PATHS = {

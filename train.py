@@ -6,15 +6,18 @@ from torch.autograd import Variable
 
 def train_kfold(model_class, model_params, model_name, datasets):
     models = []
+    losses = []
     train_metrics = []
     val_metrics = []
     
-    for (train, val) in datasets:
-        model = model_class(**model_params[model_name], example=train.X)
-        model, metrics = train_process(model, model_name, train, val, return_stats=True)
-        models.append(model)
-        train_metrics.append(metrics['train_metrics'])
-        val_metrics.append(metrics['val_metrics'])
+    for i, (train, val) in enumerate(datasets):
+        print(f'Training fold #{i+1}')
+        model = model_class(**model_params, example=train.X)
+        trained_model, metrics = train_process(model, model_name, train, val, return_stats=True)
+        models.append(trained_model)
+        losses.append(metrics['loss'][-1])
+        train_metrics.append(metrics['train_metrics'][-1])
+        val_metrics.append(metrics['val_metrics'][-1])
     
     print(f'Trained {len(datasets)} folds')
     print(f'Train metrics for each fold: {train_metrics}\nMean train metric: {np.mean(train_metrics):.4f}')
@@ -50,7 +53,7 @@ def train_process(model, model_name, train_dataset, test_dataset, return_stats=F
         val_metrics.append(val_result)
 
         print(f'Epoch: {epoch + 1:02d}, '
-              f'Loss: {loss:.4f}, '
+              f'Loss: {loss:.8f}, '
               f'Train: {100 * train_result:.2f}%, '
               f'Test: {100 * val_result:.2f}%')
     if return_stats:

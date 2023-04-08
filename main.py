@@ -1,7 +1,10 @@
-from dataset import *
-from train_test_split import simple_split, torch_split, read_from_json
+# import faulthandler
+# faulthandler.enable()
+
+from dataset import create_kfold_datasets
 from config import MODEL_PARAMS, DATASET_PARAMS, SPLITS, MODEL_NAME, DATASET_NAME, MODEL_CLASSES
-from train import train_process, train_kfold
+from train import train_kfold, train_process
+from utils.io import read_file_locally
 
 
 if __name__ == '__main__':
@@ -23,12 +26,14 @@ if __name__ == '__main__':
     #                     example=train_dataset.X)
     # model = train_process(model, 'BrainNetCNN', train_dataset, test_dataset)
 
-
-    kfold_splits = read_from_json(SPLITS[DATASET_NAME])
+    kfold_splits = read_file_locally(SPLITS[DATASET_NAME])
     datasets = create_kfold_datasets(MODEL_NAME, 
                                      kfold_splits, 
-                                     DATASET_PARAMS[DATASET_PARAMS][DATASET_NAME])
-    models = train_kfold(MODEL_CLASSES[MODEL_NAME], 
-                         MODEL_PARAMS[MODEL_NAME], 
-                         MODEL_NAME, 
+                                     **DATASET_PARAMS[MODEL_NAME][DATASET_NAME])
+    models = train_kfold(MODEL_CLASSES[MODEL_NAME],
+                         MODEL_PARAMS[MODEL_NAME],
+                         MODEL_NAME,
                          datasets)
+    # model = MODEL_CLASSES[MODEL_NAME](**MODEL_PARAMS[MODEL_NAME], example=datasets[0][0].X)
+    # model = train_process(model, MODEL_NAME, datasets[0][0], datasets[0][1])
+    # print(model)

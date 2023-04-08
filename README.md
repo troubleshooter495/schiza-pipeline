@@ -17,3 +17,14 @@ Higher School of Economics, The Skolkovo Institute of Science and Technology, 20
 * add logging to file and checkpoints to training
 * add loading pretrained model
 * add save_file_locally() to io.py
+
+
+
+### Metrics
+
+**BrainNetCNN - cobre** 
+- Trained 5 folds
+- Train metrics for each fold: [0.5, 0.484375, 0.5, 0.4375, 0.515625]
+- Mean train metric: 0.4875
+- Validation metrics for each fold: [0.4444444444444444, 0.625, 0.75, 0.5, 0.5]
+- Mean validation metric: 0.5639

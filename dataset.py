@@ -12,7 +12,8 @@ import torch.utils.data.dataset
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 
-from utils.io import read_file_locally, read_data
+from utils.io import read_file_locally
+# from utils.braingnn_preprocessing import  read_data
 from config import PATHS, DATASET_PARAMS, SEED
 
 import os
@@ -90,6 +91,9 @@ class BrainNetDataset(torch.utils.data.Dataset):
             y_all = conn_matr['label'][0]
             ids = conn_matr['id'][0]
             if kfold_labels:
+                print()
+                print(ids)
+                print(kfold_labels)
                 mask = np.isin(ids, kfold_labels)
                 print(mask.sum(), 'patients in fold')
                 x = x[mask]
@@ -209,15 +213,20 @@ def create_dataset(dataset_name='graph_dataset', save_folder='schiza', **kwargs)
     return dataset
 
 
-def create_kfold_datasets(dataset_name: str, splits: Dict[int: Dict[str: List[str]]],
-                         save_folder='schiza', **kwargs):
-    datasets = []
-    for i, fold in enumerate(splits):
+def create_kfold_datasets(dataset_name: str, splits: Dict[int, Dict[str, List[str]]],
+                         save_folder: str = 'schiza', **kwargs):
+    dataset_pairs = []
+    for id, fold in splits.items():
+        if id == 'test':
+            continue
         train_ids, val_ids = fold['train'], fold['valid']
-        save_dir = f"{PATHS['dataset_dir']}/{dataset_name}/{save_folder}_fold{i}"
+        print()
+        print('train ids:', train_ids)
+        print('val ids:', val_ids)
+        save_dir = f"{PATHS['dataset_dir']}/{dataset_name}/{save_folder}_fold{id}"
         train_set = datasets[dataset_name](save_dir, mode='train', kfold_labels=train_ids,
-                                           **DATASET_PARAMS[dataset_name], **kwargs)
+                                           **kwargs)
         val_set = datasets[dataset_name](save_dir, mode='validation', kfold_labels=val_ids,
-                                         **DATASET_PARAMS[dataset_name], **kwargs)
-        datasets.append((train_set, val_set))
-    return datasets
+                                         **kwargs)
+        dataset_pairs.append((train_set, val_set))
+    return dataset_pairs
